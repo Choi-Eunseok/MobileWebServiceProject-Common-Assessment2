@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
 
     ImageView imgView;
     TextView textView;
-    String site_url = "https://eunseokchoi.pythonanywhere.com";
+    String site_url = "http://10.0.2.2:8000";
     JSONObject post_json;
     String imageUrl = null;
     Bitmap bmImg = null;
