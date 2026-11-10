@@ -9,7 +9,7 @@ class ChangeDetection:
     HOST = 'http://127.0.0.1:8000'
     username = 'admin'
     password = 'password'
-    token = ''
+    token = 'token'
     title = ''
     text = ''
     
@@ -21,7 +21,9 @@ class ChangeDetection:
             'password': self.password,
         })
         res.raise_for_status()
-        self.token = res.json()['token'] # 토큰 저장
+        login = res.json()
+        self.token = login['token'] # 토큰 저장
+        self.user_id = login['user_id'] # Post.author 지정용
         print(self.token)
 
     def add(self, names, detected_current, save_dir, image):
@@ -55,10 +57,11 @@ class ChangeDetection:
         cv2.imwrite(full_path, dst)
 
         # 인증이 필요한 요청에 아래의 headers를 붙임
-        headers = {'Authorization' : 'JWT ' + self.token, 'Accept' : 'application/json'}
+        headers = {'Authorization' : 'Token ' + self.token, 'Accept' : 'application/json'}
         
         # Post Create
         data = {
+            'author' : self.user_id,
             'title' : self.title,
             'text' : self.text,
             'created_date' : now,
