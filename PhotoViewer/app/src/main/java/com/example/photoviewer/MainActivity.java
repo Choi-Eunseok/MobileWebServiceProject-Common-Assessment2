@@ -1,13 +1,17 @@
 package com.example.photoviewer;
 
+import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.provider.OpenableColumns;
@@ -21,12 +25,15 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -49,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
     ImageView imgView;
     TextView textView;
-    String site_url = "http://10.0.2.2:8000";
+    String site_url = "http://eunseokchoi.pythonanywhere.com";
     JSONObject post_json;
     String imageUrl = null;
     Bitmap bmImg = null;
@@ -78,6 +85,19 @@ public class MainActivity extends AppCompatActivity {
                         && uploadDialog != null) {
                     Uri uri = result.getData().getData();
                     uploadDialog.setImage(uri, getFileName(uri));
+                }
+            });
+
+    // 푸시 알림을 눌러 들어왔을 때 열어줄 게시물 (id 가 -1 이고 제목이 null 이면 없음)
+    int pendingPostId = -1;
+    String pendingPostTitle = null;
+
+    // 알림 권한 요청 결과 (Android 13+)
+    private final ActivityResultLauncher<String> notificationPermission = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), granted -> {
+                if (!granted) {
+                    Toast.makeText(getApplicationContext(),
+                            "알림 권한이 없어 새 게시물 알림을 받을 수 없습니다.", Toast.LENGTH_LONG).show();
                 }
             });
 
@@ -113,6 +133,70 @@ public class MainActivity extends AppCompatActivity {
         } else {
             textUser.setText(auth.getString("username", "") + " 님");
         }
+
+        setupPushNotification();
+        handlePushIntent(getIntent());
+    }
+
+    // 게시물 등록 푸시 알림 준비 : 채널 생성 → 권한 요청 → 토픽 구독
+    private void setupPushNotification() {
+        PushMessagingService.createChannel(this);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS);
+        }
+
+        FirebaseMessaging.getInstance().subscribeToTopic(PushMessagingService.TOPIC_NEW_POST)
+                .addOnCompleteListener(task ->
+                        Log.d("PushMessaging", "토픽 구독 " + (task.isSuccessful() ? "성공" : "실패")));
+    }
+
+    // 앱이 이미 실행 중일 때 알림을 누른 경우
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handlePushIntent(intent);
+    }
+
+    // 알림으로 들어온 경우 목록을 새로 받아 해당 게시물 상세 화면을 띄움
+    private void handlePushIntent(Intent intent) {
+        if (intent == null) return;
+        String postId = intent.getStringExtra(PushMessagingService.EXTRA_POST_ID);
+        if (postId == null) return;
+        pendingPostTitle = intent.getStringExtra(PushMessagingService.EXTRA_POST_TITLE);
+        intent.removeExtra(PushMessagingService.EXTRA_POST_ID);   // 화면 회전 등으로 다시 처리되지 않게
+        try {
+            pendingPostId = Integer.parseInt(postId);
+        } catch (NumberFormatException e) {
+            pendingPostId = -1;
+        }
+        if (!getToken().isEmpty()) {
+            onClickDownload(null);   // 로그인 전이면 로그인 성공 후 목록을 받으면서 처리됨
+        }
+    }
+
+    // 목록을 받은 뒤, 알림으로 들어온 게시물이 있으면 상세 화면 표시
+    private void openPendingPost() {
+        if (pendingPostId == -1 && pendingPostTitle == null) return;
+        PostItem found = null;
+        for (PostItem post : allPosts) {
+            if (pendingPostId != -1 && post.id == pendingPostId) {
+                found = post;
+                break;
+            }
+            // 서버 응답에 id 가 없으면 제목으로 찾음 (같은 제목이면 가장 최근 글)
+            if (pendingPostTitle != null && post.title.equals(pendingPostTitle)) {
+                found = post;
+            }
+        }
+        if (found != null) {
+            new PostDetailDialog(MainActivity.this, found).show();
+        }
+        pendingPostId = -1;
+        pendingPostTitle = null;
     }
 
     private String getToken() {
@@ -248,6 +332,7 @@ public class MainActivity extends AppCompatActivity {
             swipeRefresh.setRefreshing(false);
             allPosts = images;
             showPosts();
+            openPendingPost();
         }
     }
 
