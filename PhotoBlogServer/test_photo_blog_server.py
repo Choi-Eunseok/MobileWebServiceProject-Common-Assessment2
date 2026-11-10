@@ -16,6 +16,7 @@ from blog.models import Post
 
 # 임시 DB / 임시 미디어 폴더 사용 (실제 db.sqlite3, media 는 건드리지 않음)
 settings.MEDIA_ROOT = tempfile.mkdtemp()
+settings.FCM_ENABLED = False  # 테스트 중에는 실제 푸시 알림을 보내지 않음
 runner = DiscoverRunner(verbosity=0)
 runner.setup_test_environment()
 old = runner.setup_databases()

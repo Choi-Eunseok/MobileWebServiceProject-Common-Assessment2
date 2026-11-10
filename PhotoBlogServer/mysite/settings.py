@@ -129,3 +129,19 @@ REST_FRAMEWORK = {
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media/"
+
+# --- FCM 푸시 알림 (게시물 등록 알림) ---
+import os
+
+# 서비스 계정 키 경로: 환경변수 FCM_CREDENTIALS 우선, 없으면 BASE_DIR 의 *firebase-adminsdk*.json
+FCM_CREDENTIALS = os.environ.get('FCM_CREDENTIALS') or next(
+    iter(sorted(BASE_DIR.glob('*firebase-adminsdk*.json'))), None)
+FCM_TOPIC = 'new_post'  # 모바일 클라이언트가 구독하는 토픽
+FCM_ENABLED = os.environ.get('FCM_ENABLED', '1') == '1'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'loggers': {'blog.fcm': {'handlers': ['console'], 'level': 'INFO'}},
+}
