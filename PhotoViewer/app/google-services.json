@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "308098618255",
+    "project_id": "photoviewer-34547",
+    "storage_bucket": "photoviewer-34547.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:308098618255:android:83b8b4379a3097caf8f1fa",
+        "android_client_info": {
+          "package_name": "com.example.photoviewer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkfVY_5SZnSMflgrUezDpzEeSdw-bnYeo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
